@@ -1,0 +1,19 @@
+///
+	# main layout
+///
+
+doctype html
+
+head
+	title= site.title
+	
+body
+	h1= doc.title
+
+	.content= doc.content
+
+	ul#list
+		each doc in featured()
+			li= doc.title
+
+	#partial= partial('banner')

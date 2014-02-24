@@ -1,0 +1,25 @@
+{
+  "name": "docpad-poc",
+  "version": "0.0.0",
+  "description": "Basic DocPad generator proof of concept with not-in-memory database and async templating.",
+  "main": "index.coffee",
+  "scripts": {
+    "test": "mocha --compilers coffee:coffee-script/register"
+  },
+  "keywords": [
+    "docpad",
+    "fsdb",
+    "async",
+    "poc"
+  ],
+  "author": "Luke Nimtz",
+  "license": "ISC",
+  "devDependencies": {
+    "coffee-script": "~1.7.1",
+    "fsdb": "~0.0.0",
+    "superagent": "~0.16.0",
+    "mocha": "~1.17.1",
+    "should": "~3.1.2",
+    "connect": "~2.13.0"
+  }
+}
