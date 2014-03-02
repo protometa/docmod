@@ -1,6 +1,7 @@
-///
-	# main layout
-///
+---
+# main layout
+
+---
 
 doctype html
 
@@ -8,12 +9,12 @@ head
 	title= site.title
 	
 body
-	h1= doc.title
+	h1#title= doc.title
 
 	.content= doc.content
 
 	ul#list
-		each doc in featured()
+		each doc in featured
 			li= doc.title
 
-	#partial= partial('banner')
+	#partial= async( partial('banner') )

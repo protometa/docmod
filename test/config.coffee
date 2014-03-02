@@ -1,7 +1,10 @@
 
 config = 
 
-	template:
+	src: './test/src'
+	out: './test/out'
+
+	locals:
 
 		site: 
 
@@ -10,15 +13,16 @@ config =
 
 		async:
 
-			featured: (cb) ->
+			featured: -> 
+				@findAll( -> @featured )
+				.then (arr) -> 
+					arr.map( (e) -> e.meta() )
+					q.all( arr )
 
-				@findAll(( -> @featured ), cb )
+			partial: (title) ->
 
+			
 
-			partial: (title,cb) ->
-
-				@findOne (-> @partial && @title == title), (doc) ->
-					doc.render(cb)
 
 
 
