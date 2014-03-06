@@ -54,16 +54,6 @@ class Doc
 					if @match
 						@meta = YAML.parse( @match[4].trim().replace(/\t/g,'    ') )
 
-						# set default url in meta
-						if !@meta.url?
-							splitpath = @path.split('/')
-							splitname = splitpath[splitpath.length-1].split('.')
-							if splitname[0] == 'index'
-								@meta.url = splitpath.slice(0,splitpath.length-2).join('/')
-							else
-								splitpath[splitpath.length-1] = splitname[0]
-								@meta.url = splitpath.join('/')
-
 						cb(null, @meta)
 
 					else

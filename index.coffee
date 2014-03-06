@@ -82,35 +82,37 @@ module.exports = (opt) ->
         outPath = p.join( out, pu.path)
 
         # if doc is found in out (is probably static unless flag has changed)
+        # use glob to get src files
+
+        # modify fsdb to find files given path with glob?
+
         fs.stat outPath, (err, outStats) ->
-            if err
-                next(err)
+            if err then return next(err)
+
+            # if src/ is newer than out doc
+            if !outStats? or outStats.mtime.getTime() < srcmtime
+
+                # parse doc and get dynamic flag
+                srcDoc = new Doc(srcPath)
+
+                srcDoc.getMeta (err,meta) ->
+
+                    # if doc is dynamic
+                    if meta.dynamic
+
+                        srcDoc.render (err, outRendered) ->
+                            res.end(outRendered)
+
+                    # else doc is static
+                    else
+
+                        srcDoc.render (err, outRendered) ->
+
+                            fs.write outPath, outRendered, (err) ->
+                                next(err)
+
             else
-
-                # if src/ is newer than out doc
-                if !outStats? or outStats.mtime.getTime() < srcmtime
-
-                    # parse doc and get dynamic flag
-                    srcDoc = new Doc(srcPath)
-
-                    srcDoc.getMeta (err,meta) ->
-
-                        # if doc is dynamic
-                        if meta.dynamic
-
-                            srcDoc.render (err, outRendered) ->
-                                res.end(outRendered)
-
-                        # else doc is static
-                        else
-
-                            srcDoc.render (err, outRendered) ->
-
-                                fs.write outPath, outRendered, (err) ->
-                                    next(err)
-
-                else
-                    next() # doc will be served from out
+                next() # doc will be served from out
 
 
 

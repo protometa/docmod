@@ -28,7 +28,6 @@ describe 'docpad redux doc', ->
 
         doc.getMeta (err,meta) ->
             should.exist(meta)
-            meta.should.have.property('url','./test/src/docs/testdoc01')
             meta.should.have.property('title','Test Doc')
 
             done()
