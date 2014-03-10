@@ -1,77 +1,78 @@
 
 fs = require 'fs'
 http = require 'http'
-superagent = require 'superagent'
+client = require 'superagent'
 should = require 'should'
 cheerio = require 'cheerio'
 st = require 'st'
 
 Doc = require '../doc'
 
-connect = require 'connect'
+express = require 'express'
 
-docpad = require 'docpad-redux'
+docmod = require '../index'
 config = require './config'
 
-app = connect()
+app = express()
 
-app.use(docpad(config))
-app.use(st(config.out))
+app.set 'views', 'test/src/layouts'
+app.set 'view engine', 'jade'
+app.set 'view options',
+	layout: false #use jade's block/extend instead
+
+app.use docmod 
+	src: './test/src'
+	out: './test/out'
+	locals:
+		title: 'Test'
+app.use(st({path:'./test/out', url:'/'}))
 
 server = http.createServer(app).listen(3067);
 
-describe 'docpad redux doc', ->
 
-    it 'returns Doc with metadata using cb', (done) ->
+describe 'server with docmod middleware', ->
 
-        doc = new Doc('./test/src/docs/testdoc01.html.md')
+	it 'responds', (done) ->
 
-        doc.getMeta (err,meta) ->
-            should.exist(meta)
-            meta.should.have.property('title','Test Doc')
+		client.get 'localhost:3067', (res) ->
+			should.exist(res)
+			done()
 
-            done()
+	it 'serves static doc with embeded body', (done) ->
 
-    it 'returns Doc with metadata using promise', (done) ->
+		client.get 'localhost:3067/test-01', (res) ->
+			should.exist(res)
+			if res.error then return done(res.error)
 
-        doc = new Doc('./test/src/docs/testdoc01.html.md')
+			$ = cheerio.load(res.text)
+			$('#title').text().should.eql( 'Static Embeded Test' )
+			$('#body').text().should.eql('This is an embeded body.')
 
-        doc.getMeta().then (meta) ->
-            should.exist(meta)
-            meta.should.have.property('title','Test Doc')
+			done()
 
-        .done ->
-            done()
+	it 'serves static doc with loaded body'#, (done) ->
 
-describe 'fsdb with docpad redux doc matching function', ->
+		# client.get 'localhost:3067/test-02', (res) ->
+		# 	should.exist(res)
+		# 	if res.error then return done(res.error)
 
-    it 'returns doc with given url'
+		# 	$ = cheerio.load(res.text)
 
+	it 'returns our rendered test doc', (done) ->
 
+		client.get 'localhost:3067/test-03', (res) ->
+			should.exist(res)
+			if res.error then return done(res.error)
 
+			# console.log res
 
+			$ = cheerio.load(res.text)
+			$('#title').text().should.eql( 'Test Doc 3' )
 
-describe 'server with docpad-redux middleware', ->
-
-    it 'responds', (done) ->
-
-        superagent.get 'localhost:3067', (res) ->
-            should.exist(res)
-            done()
-
-    it 'returns our rendered test doc', (done) ->
-
-        superagent.get 'localhost:3067/testdoc01.html.md', (res) ->
-            should.exist(res)
-            if res.error then return done(res.error)
-
-            $ = cheerio.load(res.text)
-            $('#title').text().should.eql( 'Test Site' )
-
-            done()
+			done()
 
 after ->
-    server.close()
+	server.close()
 
 
 

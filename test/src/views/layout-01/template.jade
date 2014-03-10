@@ -1,0 +1,16 @@
+
+doctype html
+
+head
+	title= title
+	
+body
+	h1#title= title
+
+	#body!= body
+
+	ul#list
+		each doc in featured
+			li= doc.title
+
+	#partial!= partial

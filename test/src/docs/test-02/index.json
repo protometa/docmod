@@ -1,0 +1,8 @@
+{
+	"title": "Static Test",
+	"view": "layout-01",
+	"tags":["baz","qux"],
+	"load":{
+		"body":"body.txt"
+	}
+}

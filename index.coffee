@@ -1,50 +1,23 @@
 ###
 
-    docpad async fsdb middleware
-    set src, out, and config
+DOCMOD
 
-    wrap and set async helpers
-        wrapper registers call with render and returns token
+require path from src (may be json, js, or coffee)
+may be function that accepts req for dynamic content
+may return promise for async results
+resolves to object of document meta
+view is specified in meta
+"load" fields are loaded into meta obj
+	.txt, .html, .md are encoded as utf8, otherwise base64 ...uh there will be others like .jade
+"link" fields are resolved as relative url paths in meta obj
+	maybe only copy linked things to /out, also render if necessary
+	run static on src after docmod /!\
 
-    watch src/ and set changed time
+route view's locals are merged and rendered
+if view contains layout it's rendered in that view and so on...
 
-    middleware
-
-        #if req path matches doc in src/docs
-
-            if doc is found in out (static)
-                if src/ is newer than doc
-                    handle doc...
-
-                else doc in out is up to date
-                    serve doc in out
-
-            else doc is not in out
-                handle doc...
-
-
-        handle doc
-            parse doc and get dynamic flag
-            if doc is dynamic
-                handle dynamic...
-            else doc is static
-                handle static...
-
-        handle dynamic
-            render doc...
-            serve doc
-
-        handle static
-            render doc...
-            save to out
-            serve doc
-
-        render doc
-            render based on extentions
-            on results from registered async helpers
-                replace tokens with results (handlebars?)
-                return rendered doc
-
+if require fails with module not found err, proceed without err
+serve static from src after docmod
 
 ###
 
@@ -52,67 +25,125 @@ url = require 'url'
 fs = require 'fs'
 p = require 'path'
 doc = require './doc'
-
-YAML = require 'yamljs'
-metaRegex = /^\s*(([^\s\d\w])\2{2,})(?:\x20*([a-z]+))?([\s\S]*?)\1/
+async = require 'async'
+Q = require 'q'
+jade = require 'jade'
+md = require 'marked'
+merge = require 'utils-merge'
 
 module.exports = (opt) ->
 
-    src = opt.src ? './src'
-    out = opt.out ? './out'
+	src = opt.src ? './src'
+	out = opt.out ? './out'
 
-    srcPath = p.join( src,'/docs')
-    console.log 'srcPath:', srcPath
+	return (req, res, next) ->
 
-    console.log srcPath
+		get = (path) ->
+			d = Q.defer()
+			try
+				# meta may be json (static), js, or coffee
+				meta = require( path )
 
-    srcmtime = new Date()
+			catch err
+				# console.log err
+				d.reject(err)
+				return d.promise
+					
 
-    fs.watch srcPath, () ->
-        srcmtime = new Date()
+			# meta may be function that accepts req (dynamic)
+			if typeof meta == 'function'
+				meta = meta(req)
+
+			# meta may return promise (asynchronous)
+			Q.when( meta ).then (meta) ->
+
+				# load files...
+
+				fs.readdir path, (err,files) ->
+					if err and err.code != 'ENOTDIR' then return d.reject(err)
+
+					if files?
+						async.each files, (file,cb) ->
+
+							fileSplit = file.split('.')
+
+							key = fileSplit[0]
+
+							if key == 'index'
+								return cb()
 
 
-    return (req, res, next) ->
+							fs.readFile p.join(path, file), {encoding:'utf8'}, (err, data) ->
+								if err then return cb(err)
 
-        if ('GET' != req.method && 'HEAD' != req.method) then return next()
+								if fileSplit[fileSplit.length-1] == 'md'
+									data = md( data )
 
-        # if req path matches doc in src/docs
-        pu = url.parse(req.url)
+								meta[key] = data
+								cb()
 
-        outPath = p.join( out, pu.path)
+						, (err) ->
+							if err then return d.reject(err)
 
-        # if doc is found in out (is probably static unless flag has changed)
-        # use glob to get src files
+							d.resolve(meta)
 
-        # modify fsdb to find files given path with glob?
 
-        fs.stat outPath, (err, outStats) ->
-            if err then return next(err)
+					else
 
-            # if src/ is newer than out doc
-            if !outStats? or outStats.mtime.getTime() < srcmtime
+						d.resolve(meta)
 
-                # parse doc and get dynamic flag
-                srcDoc = new Doc(srcPath)
+			.done()
 
-                srcDoc.getMeta (err,meta) ->
+			return d.promise
 
-                    # if doc is dynamic
-                    if meta.dynamic
 
-                        srcDoc.render (err, outRendered) ->
-                            res.end(outRendered)
 
-                    # else doc is static
-                    else
+		srcPath = p.resolve('.',p.join(src,'docs',url.parse(req.url).path))
 
-                        srcDoc.render (err, outRendered) ->
+		# console.log srcPath			
 
-                            fs.write outPath, outRendered, (err) ->
-                                next(err)
+		docMeta = null
+		layoutMeta = null
+		locals = {}
 
-            else
-                next() # doc will be served from out
+		merge locals, opt.site
+		
+
+		get( srcPath ) # get doc meta
+		.then (meta) ->
+
+			merge locals, meta
+			locals.url = url.parse(req.url).path
+
+			srcPath = p.resolve('.', p.join(src,'views', meta.view) )
+
+			get( srcPath ) # get layout meta
+
+		.then (meta) ->
+
+			merge locals, meta
+
+			# console.log locals
+
+			jade.render meta.template, locals, (err, rendered) ->
+				if err then return next(err)
+
+				# console.log rendered
+
+				# res.setHeader('content-type', 'text/html') # default header for clean static urls
+				# fs.writeFile p.resolve('.', p.join(out, locals.url) ), rendered, next
+
+				res.send( rendered )
+
+		.fail (err) ->
+
+			if err.code == 'MODULE_NOT_FOUND'
+				next()
+			else
+				next(err)
+
+		.done()
+
 
 
 
