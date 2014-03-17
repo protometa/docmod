@@ -4,7 +4,7 @@
   "description": "Basic DocPad generator proof of concept with not-in-memory database and async templating.",
   "main": "index.coffee",
   "scripts": {
-    "test": "mocha --compilers coffee:coffee-script/register"
+    "test": "mocha -R spec --compilers coffee:coffee-script/register"
   },
   "keywords": [
     "docpad",

@@ -1,0 +1,6 @@
+{
+	"title": "Simple Static Layout Test",
+	"tags": ["foo","qux"],
+	"data": "some local doc data...",
+	"layout": "layout-01.2.json"
+}

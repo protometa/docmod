@@ -11,7 +11,7 @@ view is specified in meta
 	.txt, .html, .md are encoded as utf8, otherwise base64 ...uh there will be others like .jade
 "link" fields are resolved as relative url paths in meta obj
 	maybe only copy linked things to /out, also render if necessary
-	run static on src after docmod /!\
+	or run static on src after docmod /!\
 
 route view's locals are merged and rendered
 if view contains layout it's rendered in that view and so on...
@@ -29,12 +29,15 @@ async = require 'async'
 Q = require 'q'
 jade = require 'jade'
 md = require 'marked'
-merge = require 'utils-merge'
+require 'uber'
 
 module.exports = (opt) ->
 
-	src = opt.src ? './src'
-	out = opt.out ? './out'
+	# inherit defaults
+	opt.uber
+		src: './src'
+		out: './out'
+		maxDepth: 4
 
 	return (req, res, next) ->
 
@@ -48,94 +51,186 @@ module.exports = (opt) ->
 				# console.log err
 				d.reject(err)
 				return d.promise
+
+			locals = {}.uber(meta)
+
+			# console.log locals
 					
 
-			# meta may be function that accepts req (dynamic)
-			if typeof meta == 'function'
-				meta = meta(req)
+			# meta props may be functions that accept req (dynamic)
+			for key,prop of locals
+				if typeof prop == 'function'
+					locals[key] = prop(req)
 
-			# meta may return promise (asynchronous)
-			Q.when( meta ).then (meta) ->
+			# meta props may be or return promises (asynchronous)
+			# props = []
+			# for key,prop of meta
+			# 	# console.log key,prop
+				
+			# 	meta[key] = Q.when(prop).then (prop) ->
+			# 		console.log key, prop
+			# 		meta[key] = prop
+
+			# 	props.push meta[key]
+
+
+			async.each Object.keys(locals), (key, cont) ->
+				
+				locals[key] = Q.when( locals[key] )
+				.then (prop) ->
+					locals[key] = prop
+					cont()
+
+				.fail (err) ->
+					cont(err)
+
+			, (err) ->
+				if err
+					return d.reject(err)
+
 
 				# load files...
 
-				fs.readdir path, (err,files) ->
-					if err and err.code != 'ENOTDIR' then return d.reject(err)
+				if locals.load?
+					async.each Object.keys(locals.load), (key,cont) ->
+						file = locals.load[key]
 
-					if files?
-						async.each files, (file,cb) ->
+						ext = p.extname(file)
 
-							fileSplit = file.split('.')
+						switch ext
+							when '.jpg','.png','.gif'
+								encode = 'base64'
+							else
+								encode = 'utf8'
 
-							key = fileSplit[0]
+						file = p.resolve( path, file )
 
-							if key == 'index'
-								return cb()
+						fs.readFile file, {encoding: encode}, (err, data) ->
+							if err then return cont(err)
 
+							# if ext == '.md'
+							# 	data = md( data )
 
-							fs.readFile p.join(path, file), {encoding:'utf8'}, (err, data) ->
-								if err then return cb(err)
+							# 	meta[key] = data
+							# 	cb()
 
-								if fileSplit[fileSplit.length-1] == 'md'
-									data = md( data )
+							locals[key] = data
+							cont()
 
-								meta[key] = data
-								cb()
+					, (err) ->
+						if err then return d.reject(err)
 
-						, (err) ->
-							if err then return d.reject(err)
+						delete locals.load
 
-							d.resolve(meta)
+						d.resolve(locals)
 
-
-					else
-
-						d.resolve(meta)
-
-			.done()
+				else
+					d.resolve(locals)
+  
+			# .fail (err) ->
+			# 	d.reject(err)
+			# .done()
 
 			return d.promise
 
 
+		layout = (locals) ->
 
-		srcPath = p.resolve('.',p.join(src,'docs',url.parse(req.url).path))
+			locals.content ?= locals.body
+
+			# console.log locals
+
+			srcPath = p.resolve('.', p.join( opt.src,'layouts', locals.layout) )
+
+			return get( srcPath )
+			.then (meta) ->
+
+				# console.log 'layout:', meta
+
+				delete locals.layout
+
+				locals.uber(meta)
+
+				if locals.template?
+					return render(locals)
+				else
+					return locals
+
+
+		render = (locals) -> 
+			return Q.nfcall( jade.render, locals.template, locals )
+			.then (rendered) ->
+				locals.content = rendered
+				delete locals.template
+				return locals
+
+
+		# console.log url.parse(req.url)
+
+		srcPath = p.resolve('.',p.join( opt.src,'docs',url.parse(req.url).pathname))
 
 		# console.log srcPath			
 
 		docMeta = null
 		layoutMeta = null
 		locals = {}
-
-		merge locals, opt.site
-		
+		i = 0
 
 		get( srcPath ) # get doc meta
 		.then (meta) ->
 
-			merge locals, meta
-			locals.url = url.parse(req.url).path
+			locals.uber(meta)
+			locals.url = url.parse(req.url).pathname
 
-			srcPath = p.resolve('.', p.join(src,'views', meta.view) )
+			# use md in body
+			if locals.body?
+				locals.body = md( locals.body )
 
-			get( srcPath ) # get layout meta
+			if locals.template?
+				return render(locals)
+			else
+				return locals
 
-		.then (meta) ->
-
-			merge locals, meta
+		.then loopLayout = (locals) ->
 
 			# console.log locals
 
-			jade.render meta.template, locals, (err, rendered) ->
-				if err then return next(err)
+			i++
 
-				# console.log rendered
+			# console.log 'loop:', i, opt.maxDepth
 
-				# res.setHeader('content-type', 'text/html') # default header for clean static urls
-				# fs.writeFile p.resolve('.', p.join(out, locals.url) ), rendered, next
+			if i > opt.maxDepth
+				throw new Error('Max layout depth exceeded')
 
-				res.send( rendered )
+			# console.log 'loop'
+			Q.when(locals).then (locals) ->
+
+				# console.log 'locals:', locals
+
+				if locals.layout?
+
+					return loopLayout( layout(locals) )
+
+				else
+					return locals
+
+		.then (locals) ->
+
+			locals.uber( opt.locals )
+
+			# console.log 'final:',locals
+
+			if locals.content?
+				res.send( locals.content )
+
+			else
+				res.send( locals )
+
+
 
 		.fail (err) ->
+
+			console.log err			
 
 			if err.code == 'MODULE_NOT_FOUND'
 				next()

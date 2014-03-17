@@ -1,6 +1,0 @@
-{
-	"title": "Static Embeded Test",
-	"view": "layout-01",
-	"tags":["baz","qux"],
-	"body":"This is an embeded body."
-}

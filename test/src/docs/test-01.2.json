@@ -1,0 +1,6 @@
+{
+	"title": "Static Embeded Template Test",
+	"tags": ["baz","qux"],
+	"body": "This is an *embeded* body.",
+	"template": "//embeded template\nh1#title= title\n#body!= body"
+}

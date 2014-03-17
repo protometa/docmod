@@ -1,0 +1,9 @@
+{
+	"title": "Static Test Loaded With Looping Layouts",
+	"tags": ["baz","foo"],
+	"load": {
+		"body": "body.md",
+		"template": "template.jade"
+	},
+	"layout": "layout-04.1"
+}
