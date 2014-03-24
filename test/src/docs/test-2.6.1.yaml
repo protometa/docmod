@@ -1,0 +1,7 @@
+
+title: Simple Test Async Doc
+tags:
+  - hip
+  - hop
+
+dynamicAsync: {$load: /fsdb/findall } # is sent original req query

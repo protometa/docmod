@@ -1,7 +1,0 @@
-{
-	"layoutTitle": "Layout Title",
-	"partial": "<p>This is a fake partial.</p>",
-	"load": {
-		"template": "template.jade"
-	}
-}

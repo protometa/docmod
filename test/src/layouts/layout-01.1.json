@@ -1,5 +1,0 @@
-{
-	"title": "Layout Title",
-	"partial": "<p>This is a fake partial.</p>",
-	"template": "doctype html\n//embeded template\nhead\n\ttitle= title\nbody\n\th1#title= title\n\t#body!= body\n\t#partial!= partial"
-}

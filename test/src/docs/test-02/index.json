@@ -1,9 +1,0 @@
-{
-	"title": "Static Loaded Template Test",
-	"layout": "layout-02",
-	"tags":["baz","qux"],
-	"load":{
-		"body": "body.md",
-		"template": "template.jade"
-	}
-}

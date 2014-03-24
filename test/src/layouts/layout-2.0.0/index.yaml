@@ -1,4 +1,3 @@
 
 layoutTitle: Layout Title
 partial: "<p>This is a fake partial.</p>"
-# template: !load template.jade

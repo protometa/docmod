@@ -1,7 +1,0 @@
-{
-	"title": "Layout Test",
-	"tags": ["baz","qux"],
-	"body": "This is an *embeded* body.",
-	"template": "//embeded template\nh1#title= title\n#body!= body",
-	"layout": "layout-01.1"
-}

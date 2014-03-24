@@ -1,0 +1,14 @@
+
+layoutTitle: Nested Async Layout
+
+wrapperClass: 'nested'
+partial: {$load: '/partial.html'}
+
+items:
+  $load:
+    url: /fsdb/findall
+    query: { tags: [test] }
+
+template: { $load: template.jade }
+
+layout: layout-2.1.0

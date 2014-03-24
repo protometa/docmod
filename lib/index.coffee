@@ -72,11 +72,64 @@ jade = require 'jade'
 md = require 'marked'
 require 'uber'
 
-Loader = require './loader'
-Linker = require './linker'
 
-DOC_SCHEMA = yaml.Schema.create([ Loader.yamlType, Linker.yamlType ])
 
+link = (req, arg) ->
+	opt = {}
+	if typeof arg == 'string'
+		opt.url = arg
+	else
+		opt = arg
+
+	requrl = u.parse(req.url)
+	opturl = u.parse(opt.url)
+	reqpath = opt.url
+
+	if !opturl.hostname?
+
+		if opturl.pathname[0] is '/'
+			reqpath = opt.url
+		else
+			reqpath = p.join( requrl.pathname, opt.url )
+
+	return reqpath
+
+
+load = (req, arg, callpath) ->
+	opt = {}
+	if typeof arg == 'string'
+		opt.url = arg
+	else
+		opt = arg
+		opt.qs ?= opt.query # conform 'query' to 'qs' for request api
+
+	requrl = u.parse(req.url)
+	opturl = u.parse(opt.url)
+
+	pathname = opturl.pathname
+
+	if !opturl.hostname?
+
+		if opturl.pathname[0] isnt '/'
+
+			if callpath?
+				pathname = p.join( callpath, opt.url )
+				return fs.createReadStream( pathname, {encoding:'utf8'})
+			else
+				pathname = p.join( opturl.pathname, opt.url )
+
+		opt.url = u.format
+				protocol: 'http'
+				hostname: 'localhost'
+				port: req.socket.localPort
+				pathname: pathname
+				search: requrl.query
+
+	opt.headers ?= { 'accept-encoding': null }
+
+	
+
+	return req.pipe( request( opt ) )
 
 
 module.exports = (opt) ->
@@ -97,119 +150,27 @@ module.exports = (opt) ->
 
 			trypath = path + '.yaml'
 
-			try
-				doc = yaml.safeLoad(fs.readFileSync( trypath, 'utf8'),{ schema: DOC_SCHEMA })
-				d.resolve doc
-
-			catch err
-
-				if err.code is 'ENOENT'
-					trypath = p.join path, 'index.yaml'
-
-					try
-						doc = yaml.safeLoad(fs.readFileSync( trypath, 'utf8'),{ schema: DOC_SCHEMA })
-						d.resolve doc
-
-					catch err
-						d.reject err
-
-				else
-					d.reject err
-
-			return d.promise
-
-
-		get0 = (path) ->
-			d = Q.defer()
-			try
-				# meta may be json (static), js, or coffee
-				meta = require( path )
-
-			catch err
-				# console.log err
-				d.reject(err)
-				return d.promise
-
-			locals = {}.uber(meta)
-
-			# console.log locals
-					
-
-			# meta props may be functions that accept req (dynamic)
-			for key,prop of locals
-				if typeof prop == 'function'
-					locals[key] = prop(req)
-
-			# meta props may be or return promises (asynchronous)
-			# props = []
-			# for key,prop of meta
-			# 	# console.log key,prop
-				
-			# 	meta[key] = Q.when(prop).then (prop) ->
-			# 		console.log key, prop
-			# 		meta[key] = prop
-
-			# 	props.push meta[key]
-
-
-			async.each Object.keys(locals), (key, cont) ->
-				
-				locals[key] = Q.when( locals[key] )
-				.then (prop) ->
-					locals[key] = prop
-					cont()
-
-				.fail (err) ->
-					cont(err)
-
-			, (err) ->
+			
+			fs.readFile trypath, 'utf8', (err,data) ->
 				if err
-					return d.reject(err)
+					if err.code is 'ENOENT'
 
+						trypath = p.join path, 'index.yaml'
 
-				# load files...
-
-				if locals.load?
-					async.each Object.keys(locals.load), (key,cont) ->
-						file = locals.load[key]
-
-						ext = p.extname(file)
-
-						switch ext
-							when '.jpg','.png','.gif'
-								encode = 'base64'
+						fs.readFile trypath, 'utf8', (err,data) ->
+							if err
+								d.reject(err)
 							else
-								encode = 'utf8'
-
-						file = p.resolve( path, file )
-
-						fs.readFile file, {encoding: encode}, (err, data) ->
-							if err then return cont(err)
-
-							# if ext == '.md'
-							# 	data = md( data )
-
-							# 	meta[key] = data
-							# 	cb()
-
-							locals[key] = data
-							cont()
-
-					, (err) ->
-						if err then return d.reject(err)
-
-						delete locals.load
-
-						d.resolve(locals)
-
+								doc = yaml.safeLoad(data)
+								d.resolve(doc)
+					else
+						d.reject(err)
 				else
-					d.resolve(locals)
-  
-			# .fail (err) ->
-			# 	d.reject(err)
-			# .done()
+					doc = yaml.safeLoad(data)
+					d.resolve(doc)
 
 			return d.promise
+
 
 		linkAndLoad = (locals, path) ->
 
@@ -221,22 +182,25 @@ module.exports = (opt) ->
 
 				# debugger
 
-				if prop instanceof Linker
-					locals[key] = prop.resolve(req, path)
+				if prop.hasOwnProperty('$link')
+					locals[key] = link( req, prop.$link )
 
 					cont()
 
-				else if prop instanceof Loader
+				else if prop.hasOwnProperty('$load')
 
 					newProp = ''
 
-					prop.resolve(req, path)
+					rs = load( req, prop.$load, path )
 					.on 'data', (data) ->
 						newProp += data
 
 					.on 'end', ->
 
-						locals[key] = newProp.toString()
+						if rs.response?.headers['content-type']?.match(/application\/json/)
+							locals[key] = JSON.parse(newProp)
+						else
+							locals[key] = newProp.toString()
 
 						cont()
 
@@ -305,7 +269,7 @@ module.exports = (opt) ->
 
 		# console.log url.parse(req.url)
 
-		srcPath = p.resolve('.',p.join( opt.src,'docs',url.parse(req.url).pathname))
+		srcPath = p.resolve('.', p.join( opt.src,'docs',url.parse(req.url).pathname))
 
 		# console.log srcPath			
 

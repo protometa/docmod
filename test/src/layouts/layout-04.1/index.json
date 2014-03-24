@@ -1,8 +1,0 @@
-{
-	"layoutTitle": "Nested Layout",
-	"wrapperClass": "nested",
-	"load": {
-		"template": "template.jade"
-	},
-	"layout":"layout-04.1"
-}

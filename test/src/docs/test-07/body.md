@@ -1,1 +1,0 @@
-This is an *external* body of a `.coffee` doc.

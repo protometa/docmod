@@ -1,5 +1,10 @@
 
-title: Winches
+title: Simple Test Async Doc
 tags:
-  - automotive
-  - winches
+  - yor
+  - von
+
+async:
+  $load:
+    url: /fsdb/findone
+    query: { title: Simple Static Doc }
