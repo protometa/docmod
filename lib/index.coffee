@@ -2,6 +2,44 @@
 
 DOCMOD
 
+load path from src with indexing on 'index.yaml'
+	append '.yaml' to url and open, if err then append '/index.yaml' and open
+
+parse yaml with link and load constructors
+	resolve links and loads
+		load
+			if relative file
+				resolve from current dir stream current request
+			if absolute file
+				resolve to src dir and stream current request
+			if full url
+				stream current request
+
+		request?
+			if obj
+				treat as options for request and send
+
+		link
+			if relative file
+				resolve to current dir
+
+render body with template and locals
+	treat body as markdown
+	template is jade for now
+	put result in 'content'
+	delete template and body
+
+load layout and uber layout locals
+	render...
+	repeat for remaining layouts
+
+uber site locals
+if content send content or send json obj
+
+
+
+# old...
+
 require path from src (may be json, js, or coffee)
 may be function that accepts req for dynamic content
 may return promise for async results
@@ -21,27 +59,67 @@ serve static from src after docmod
 
 ###
 
-url = require 'url'
 fs = require 'fs'
+strm = require 'stream'
 p = require 'path'
-doc = require './doc'
+u = require 'url'
+util = require 'util'
+yaml = require 'js-yaml'
+request = require 'request'
 async = require 'async'
 Q = require 'q'
 jade = require 'jade'
 md = require 'marked'
 require 'uber'
 
+Loader = require './loader'
+Linker = require './linker'
+
+DOC_SCHEMA = yaml.Schema.create([ Loader.yamlType, Linker.yamlType ])
+
+
+
 module.exports = (opt) ->
 
 	# inherit defaults
-	opt.uber
+	@opt = opt.uber
 		src: './src'
 		out: './out'
 		maxDepth: 4
 
 	return (req, res, next) ->
 
+		url = u.parse(req.url)
+
 		get = (path) ->
+
+			d = Q.defer()
+
+			trypath = path + '.yaml'
+
+			try
+				doc = yaml.safeLoad(fs.readFileSync( trypath, 'utf8'),{ schema: DOC_SCHEMA })
+				d.resolve doc
+
+			catch err
+
+				if err.code is 'ENOENT'
+					trypath = p.join path, 'index.yaml'
+
+					try
+						doc = yaml.safeLoad(fs.readFileSync( trypath, 'utf8'),{ schema: DOC_SCHEMA })
+						d.resolve doc
+
+					catch err
+						d.reject err
+
+				else
+					d.reject err
+
+			return d.promise
+
+
+		get0 = (path) ->
 			d = Q.defer()
 			try
 				# meta may be json (static), js, or coffee
@@ -133,6 +211,62 @@ module.exports = (opt) ->
 
 			return d.promise
 
+		linkAndLoad = (locals, path) ->
+
+			d = Q.defer()
+
+			async.each Object.keys(locals), (key, cont) ->
+
+				prop = locals[key]
+
+				# debugger
+
+				if prop instanceof Linker
+					locals[key] = prop.resolve(req, path)
+
+					cont()
+
+				else if prop instanceof Loader
+
+					newProp = ''
+
+					prop.resolve(req, path)
+					.on 'data', (data) ->
+						newProp += data
+
+					.on 'end', ->
+
+						locals[key] = newProp.toString()
+
+						cont()
+
+					.on 'error', cont
+
+				else if typeof prop is 'object'
+
+					# debugger
+
+					linkAndLoad( prop, path )
+					.then ->
+						cont()
+					.fail (err) ->
+						cont(err)
+
+				else
+					cont()
+
+
+			, (err) ->
+				if err
+					return d.reject(err)
+
+				d.resolve(locals)
+
+
+			return d.promise
+
+			
+
 
 		layout = (locals) ->
 
@@ -144,8 +278,12 @@ module.exports = (opt) ->
 
 			return get( srcPath )
 			.then (meta) ->
+				linkAndLoad(meta, srcPath)
+
+			.then (meta) ->
 
 				# console.log 'layout:', meta
+				debugger
 
 				delete locals.layout
 
@@ -171,19 +309,25 @@ module.exports = (opt) ->
 
 		# console.log srcPath			
 
-		docMeta = null
-		layoutMeta = null
 		locals = {}
 		i = 0
 
 		get( srcPath ) # get doc meta
+
 		.then (meta) ->
+
+			linkAndLoad(meta, srcPath)
+
+		.then (meta) ->
+
+			# console.log meta
 
 			locals.uber(meta)
 			locals.url = url.parse(req.url).pathname
 
 			# use md in body
 			if locals.body?
+				# console.log locals.body
 				locals.body = md( locals.body )
 
 			if locals.template?
@@ -191,9 +335,9 @@ module.exports = (opt) ->
 			else
 				return locals
 
+
 		.then loopLayout = (locals) ->
 
-			# console.log locals
 
 			i++
 
@@ -205,7 +349,8 @@ module.exports = (opt) ->
 			# console.log 'loop'
 			Q.when(locals).then (locals) ->
 
-				# console.log 'locals:', locals
+				# console.log 'loop layout:',locals
+				# debugger
 
 				if locals.layout?
 
@@ -214,7 +359,11 @@ module.exports = (opt) ->
 				else
 					return locals
 
+		
+
 		.then (locals) ->
+
+			# console.log 'after render', locals
 
 			locals.uber( opt.locals )
 
@@ -230,9 +379,9 @@ module.exports = (opt) ->
 
 		.fail (err) ->
 
-			console.log err			
+			# console.error err			
 
-			if err.code == 'MODULE_NOT_FOUND'
+			if err.code is 'ENOENT' or err.code is 'ENOTDIR'
 				next()
 			else
 				next(err)

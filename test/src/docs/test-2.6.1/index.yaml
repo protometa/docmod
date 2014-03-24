@@ -1,0 +1,13 @@
+
+title: Nested Layout Template Test
+tags:
+  - automotive
+  - winches
+
+items: !load http://localhost:3067/fsdb?title=Simple%20Static%20Doc
+
+body: !load body.md
+image: !link picture.jpg
+template: !load template.jade
+
+layout: layout-2.2.1

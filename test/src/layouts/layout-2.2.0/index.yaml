@@ -1,0 +1,9 @@
+
+layoutTitle: Nested Layout
+
+wrapperClass: 'nested'
+partial: "<p>This is a fake partial.</p>"
+
+template: !load template.jade
+
+layout: layout-2.1.0

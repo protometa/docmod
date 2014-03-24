@@ -1,0 +1,13 @@
+
+title: Basic Layout Test
+tags:
+  - automotive
+  - winches
+
+# items: !load http://localhost:1270/?tags=automotive,winches
+
+text: !load body.md
+image: !link picture.jpg
+# template: !load template.jade
+
+layout: layout-2.0.0
