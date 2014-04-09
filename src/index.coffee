@@ -17,23 +17,191 @@ jade = require 'jade'
 md = require 'marked'
 require 'obj-uber'
 
+# defaults
+opt = 
+	src: './src'
+	out: './out'
+	maxDepth: 4
+
+module.exports = (arg) ->
+
+	opt = arg.uber opt
+
+	return (req, res, next) ->
+
+		url = u.parse(req.url)
+
+		srcPath = p.resolve('.', p.join( opt.src,'docs',url.pathname))
+
+		locals = 
+			site: opt.site
+
+		i = 0 # layout loop count
+
+		getDoc( srcPath ) # get doc meta
+
+		.then (meta) ->
+
+			linkAndLoad( req, meta, srcPath)
+
+		.then (meta) ->
+
+			locals.uber(meta)
+			locals.url = url.parse(req.url).pathname
+
+			if locals.body?
+				# console.log locals.body
+				locals.body = md( locals.body )
+
+			if locals.template?
+				return render(locals)
+			else
+				return locals
+
+		.then loopLayout = (locals) ->
+
+			i++
+
+			if i > opt.maxDepth
+				throw new Error('Max layout depth exceeded')
+
+			Q.when(locals).then (locals) ->
+
+				if locals.layout?
+
+					return loopLayout( layout(req, locals) )
+
+				else
+					return locals
+
+		.then (locals) ->
+
+			if locals.content?
+				res.send( locals.content )
+
+			else
+				res.send( locals )
+
+		.fail (err) ->
+
+			if err.code is 'ENOENT' or err.code is 'ENOTDIR' 
+				next()
+			else
+				next(err)
+
+		.done()
+
+
+getDoc = (path) ->
+
+	d = Q.defer()
+
+	if !path
+		console.log 'no path?', path
+		d.resolve(null)
+
+	# console.log path
+
+	trypath = path + '.yaml'
+
+	fs.readFile trypath, 'utf8', (err,data) ->
+		if err
+			if err.code is 'ENOENT'
+
+				trypath = p.join path, 'index.yaml'
+
+				fs.readFile trypath, 'utf8', (err,data) ->
+					if err
+						d.reject(err)
+					else
+						doc = yaml.safeLoad(data)
+						doc.isindex = true
+						d.resolve(doc)
+			else
+				d.reject(err)
+		else
+			doc = yaml.safeLoad(data)
+			d.resolve(doc)
+
+	return d.promise
+
+
+linkAndLoad = (req, locals, path, isindex) ->
+
+	isindex ?= locals.isindex
+
+	d = Q.defer()
+
+	each Object.keys(locals), (key, i, done) ->
+
+		prop = locals[key]
+
+		# debugger
+
+		if prop.hasOwnProperty('$link')
+			locals[key] = link( req, prop.$link, isindex )
+
+			done()
+
+		else if prop.hasOwnProperty('$load')
+
+			newProp = ''
+
+			rs = load( req, prop.$load, path, isindex )
+			.on 'data', (data) ->
+				newProp += data
+
+			.on 'end', ->
+
+				if rs.response?.headers['content-type']?.match(/application\/json/)
+					locals[key] = JSON.parse(newProp)
+				else
+					locals[key] = newProp.toString()
+
+				done()
+
+			.on 'error', done
+
+		else if typeof prop is 'object'
+
+			# debugger
+
+			linkAndLoad( req, prop, path, isindex )
+			.then ->
+				done()
+			.fail (err) ->
+				done(err)
+
+		else
+			done()
+
+
+	, (err) ->
+		if err
+			return d.reject(err)
+
+		d.resolve(locals)
+
+
+	return d.promise
+
 
 
 link = (req, arg, isindex) ->
-	opt = {}
+	reqopt = {}
 	if typeof arg == 'string'
-		opt.url = arg
+		reqopt.url = arg
 	else
-		opt = arg
+		reqopt = arg
 
 	requrl = u.parse(req.url)
-	opturl = u.parse(opt.url)
-	reqpath = opt.url
+	opturl = u.parse(reqopt.url)
+	reqpath = reqopt.url
 
 	if !opturl.hostname?
 
 		if opturl.pathname[0] is '/'
-			reqpath = opt.url
+			reqpath = reqopt.url
 		else
 			pathname = requrl.pathname
 
@@ -42,21 +210,21 @@ link = (req, arg, isindex) ->
 				pathname = pathname.split('/')
 				pathname = pathname.slice(0,pathname.length-1).join('/')
 
-			reqpath = p.join( pathname, opt.url )
+			reqpath = p.join( pathname, reqopt.url )
 
 	return reqpath
 
 
 load = (req, arg, callpath, isindex ) ->
-	opt = {}
+	reqopt = {}
 	if typeof arg == 'string'
-		opt.url = arg
+		reqopt.url = arg
 	else
-		opt = arg
-		opt.qs ?= opt.query # conform 'query' to 'qs' for request api
+		reqopt = arg
+		reqopt.qs ?= reqopt.query # conform 'query' to 'qs' for request api
 
 	requrl = u.parse(req.url)
-	opturl = u.parse(opt.url)
+	opturl = u.parse(reqopt.url)
 
 	pathname = opturl.pathname
 
@@ -67,319 +235,111 @@ load = (req, arg, callpath, isindex ) ->
 			if callpath?
 
 				if isindex
-					pathname = p.join( callpath, opt.url )
+					pathname = p.join( callpath, reqopt.url )
 				else
 					callpath = callpath.split('/')
 					callpath = callpath.slice(0,callpath.length-1).join('/')
 
-					pathname = p.join( callpath, opt.url )
+					pathname = p.join( callpath, reqopt.url )
 
 					console.log 'pathname:', pathname
 
 				return fs.createReadStream( pathname, {encoding:'utf8'})
 			else
-				pathname = p.join( opturl.pathname, opt.url )
+				pathname = p.join( opturl.pathname, reqopt.url )
 
-		opt.url = u.format
+		reqopt.url = u.format
 			protocol: 'http:'
 			hostname: 'localhost'
 			port: req.socket.localPort
 			pathname: pathname
 			search: requrl.query
 
-	opt.headers ?= { 'accept-encoding': null }
+	reqopt.headers ?= { 'accept-encoding': null }
 
 	# console.log opt
 
-	return req.pipe( request( opt ) )
+	return req.pipe( request( reqopt ) )
 
 
+layout = (req, locals) ->
 
-module.exports = (opt) ->
+	locals.content ?= locals.body
 
-	# inherit defaults
-	opt.uber
-		src: './src'
-		out: './out'
-		maxDepth: 4
+	# console.log locals
 
-	return (req, res, next) ->
+	srcPath = p.resolve('.', p.join( opt.src,'layouts', locals.layout) )
 
-		# console.log 'docmod headres',req.headers
+	return getDoc( srcPath )
+	.then (meta) ->
+		linkAndLoad( req, meta, srcPath)
 
-		url = u.parse(req.url)
+	.then (meta) ->
 
-		get = (path) ->
+		# console.log 'layout:', meta
+		debugger
 
-			d = Q.defer()
+		delete locals.layout
 
-			if !path
-				console.log 'no path?', path
-				d.resolve(null)
+		locals.uber(meta)
 
-			# console.log path
+		if locals.template?
+			return render(locals)
+		else
+			return locals
 
-			trypath = path + '.yaml'
 
-			fs.readFile trypath, 'utf8', (err,data) ->
-				if err
-					if err.code is 'ENOENT'
+render = (locals) ->
+	locals.basedir = p.resolve('.', p.join( opt.src,'layouts') )
+	return Q.nfcall( jade.render, locals.template, locals )
+	.then (rendered) ->
+		locals.content = rendered
+		delete locals.template
+		return locals
 
-						trypath = p.join path, 'index.yaml'
 
-						fs.readFile trypath, 'utf8', (err,data) ->
-							if err
-								d.reject(err)
-							else
-								doc = yaml.safeLoad(data)
-								doc.isindex = true
-								d.resolve(doc)
-					else
-						d.reject(err)
-				else
-					doc = yaml.safeLoad(data)
-					d.resolve(doc)
+# breadcrumbs = (locals) ->
 
-			return d.promise
+# 	d = Q.defer()
 
+# 	urlsplit = locals.url.split('/').slice(1)
+# 	breadcrumbs = [
+# 		url: '/'
+# 		title: 'Home'
+# 	]
 
-		linkAndLoad = (locals, path, isindex) ->
+# 	each urlsplit, (part,i,done) ->
 
-			isindex ?= locals.isindex
+# 		console.log i,part
 
-			d = Q.defer()
+# 		crumb = 
+# 			url: '/'+urlsplit.slice(0,i+1).join('/')
 
-			each Object.keys(locals), (key, i, done) ->
+# 		console.log crumb
 
-				prop = locals[key]
+# 		srcPath = p.resolve('.', p.join( opt.src,'docs', crumb.url ))
 
-				# debugger
+# 		getDoc( srcPath )
+# 		.then (meta) ->
+# 			console.log 'meta', meta
+# 			crumb.title = meta.title
+# 			breadcrumbs[i+1] = crumb
+# 			done()
+# 		.fail (err) ->
+# 			console.log err
+# 			if err.code is 'ENOENT' or err.code is 'ENOTDIR'
+# 				crumb.dir = part
+# 				breadcrumbs[i+1] = crumb
+# 				done()
+# 			else
+# 				done(err)
+# 	, (err) ->
+# 		if err then return d.reject(err)
 
-				if prop.hasOwnProperty('$link')
-					locals[key] = link( req, prop.$link, isindex )
+# 		console.log breadcrumbs
 
-					done()
+# 		locals.breadcrumbs = breadcrumbs
 
-				else if prop.hasOwnProperty('$load')
+# 		d.resolve(locals)
 
-					newProp = ''
-
-					rs = load( req, prop.$load, path, isindex )
-					.on 'data', (data) ->
-						newProp += data
-
-					.on 'end', ->
-
-						if rs.response?.headers['content-type']?.match(/application\/json/)
-							locals[key] = JSON.parse(newProp)
-						else
-							locals[key] = newProp.toString()
-
-						done()
-
-					.on 'error', done
-
-				else if typeof prop is 'object'
-
-					# debugger
-
-					linkAndLoad( prop, path, isindex )
-					.then ->
-						done()
-					.fail (err) ->
-						done(err)
-
-				else
-					done()
-
-
-			, (err) ->
-				if err
-					return d.reject(err)
-
-				d.resolve(locals)
-
-
-			return d.promise
-
-
-		layout = (locals) ->
-
-			locals.content ?= locals.body
-
-			# console.log locals
-
-			srcPath = p.resolve('.', p.join( opt.src,'layouts', locals.layout) )
-
-			return get( srcPath )
-			.then (meta) ->
-				linkAndLoad(meta, srcPath)
-
-			.then (meta) ->
-
-				# console.log 'layout:', meta
-				debugger
-
-				delete locals.layout
-
-				locals.uber(meta)
-
-				if locals.template?
-					return render(locals)
-				else
-					return locals
-
-
-		render = (locals) ->
-			locals.basedir = p.resolve('.', p.join( opt.src,'layouts') )
-			return Q.nfcall( jade.render, locals.template, locals )
-			.then (rendered) ->
-				locals.content = rendered
-				delete locals.template
-				return locals
-
-		breadcrumbs = (locals) ->
-
-			d = Q.defer()
-
-			urlsplit = locals.url.split('/').slice(1)
-			breadcrumbs = [
-				url: '/'
-				title: 'Home'
-			]
-
-			each urlsplit, (part,i,done) ->
-
-				console.log i,part
-
-				crumb = 
-					url: '/'+urlsplit.slice(0,i+1).join('/')
-
-				console.log crumb
-
-				srcPath = p.resolve('.', p.join( opt.src,'docs', crumb.url ))
-
-				get( srcPath )
-				.then (meta) ->
-					console.log 'meta', meta
-					crumb.title = meta.title
-					breadcrumbs[i+1] = crumb
-					done()
-				.fail (err) ->
-					console.log err
-					if err.code is 'ENOENT' or err.code is 'ENOTDIR'
-						crumb.dir = part
-						breadcrumbs[i+1] = crumb
-						done()
-					else
-						done(err)
-			, (err) ->
-				if err then return d.reject(err)
-
-				console.log breadcrumbs
-
-				locals.breadcrumbs = breadcrumbs
-
-				d.resolve(locals)
-
-			d.promise
-
-
-		# console.log url.parse(req.url)
-
-		srcPath = p.resolve('.', p.join( opt.src,'docs',url.parse(req.url).pathname))
-
-		# console.log srcPath
-
-		locals = 
-			site: opt.site
-
-		i = 0
-
-		get( srcPath ) # get doc meta
-
-		.then (meta) ->
-
-			# console.log meta
-
-			linkAndLoad(meta, srcPath)
-
-		.then (meta) ->
-
-			# console.log meta
-
-			locals.uber(meta)
-			locals.url = url.parse(req.url).pathname
-
-			# locals
-
-		# .then (locals) ->
-
-		# 	breadcrumbs(locals)
-			
-		# .then (locals) ->	
-
-			# console.log locals
-
-			# use md in body
-			if locals.body?
-				# console.log locals.body
-				locals.body = md( locals.body )
-
-			if locals.template?
-				return render(locals)
-			else
-				return locals
-
-
-		.then loopLayout = (locals) ->
-
-
-			i++
-
-			# console.log 'loop:', i, opt.maxDepth
-
-			if i > opt.maxDepth
-				throw new Error('Max layout depth exceeded')
-
-			# console.log 'loop'
-			Q.when(locals).then (locals) ->
-
-				# console.log 'loop layout:',locals
-				# debugger
-
-				if locals.layout?
-
-					return loopLayout( layout(locals) )
-
-				else
-					return locals
-
-		.then (locals) ->
-
-			# console.log locals
-
-
-			if locals.content?
-				res.send( locals.content )
-
-			else
-				res.send( locals )
-
-
-
-		.fail (err) ->
-
-			# console.error err
-
-
-			if err.code is 'ENOENT' or err.code is 'ENOTDIR' 
-				next()
-			else
-				next(err)
-
-		.done()
-
-
-
-
+# 	d.promise

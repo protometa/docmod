@@ -5,6 +5,7 @@
   "main": "lib/index.js",
   "scripts": {
     "test": "npm run build; mocha -R spec --compilers coffee:coffee-script/register",
+    "debug": "npm run build; mocha -R spec --compilers coffee:coffee-script/register --debug-brk & node-inspector",
     "build": "coffee -c -o lib/ src/"
   },
   "keywords": [
