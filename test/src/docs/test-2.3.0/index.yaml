@@ -4,7 +4,7 @@ tags:
   - foo
   - qux
 
-text: { $load: body.md }
-image: { $link: picture.jpg }
+text: {$load: body.md }
+image: {$link: picture.jpg }
 
 layout: layout-2.0.0

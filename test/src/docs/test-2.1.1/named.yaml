@@ -1,0 +1,13 @@
+
+title: Deep Link Load Test
+tags:
+  - qux
+  - pop
+
+obj:
+  text: { $load: body.md }
+  image: { $link: picture.jpg }
+
+arr:
+  - { $load: body.md }
+  - { $link: picture.jpg }

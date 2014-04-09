@@ -11,10 +11,9 @@ st = require 'st'
 express = require 'express'
 
 docmod = require '../lib/index'
-Loader = require '../lib/loader'
-config = require './config'
+# config = require './config'
 
-fsdb = require 'fsdb'
+fscan = require 'fscan'
 match = require 'mod-query-match'
 
 app = server = null
@@ -24,7 +23,7 @@ app = express()
 app.use docmod 
 	src: './test/src'
 	out: './test/out'
-	locals:
+	site:
 		title: 'Site Test Title'
 		siteData: 'some site data...'
 
@@ -42,14 +41,14 @@ app.use docmod
 # 	res.send success:true
 
 app.get '/fsdb/findone', (req,res,next) ->
-	fsdb.findOne './test/src/docs/**/*.yaml', match(req.query), (err,doc) ->
+	fscan.findOne './test/src/docs/**/*.yaml', match(req.query), (err,doc) ->
 		if err
 			console.log err
 			return next(err)
 		res.send(doc)
 
 app.get '/fsdb/findall', (req,res,next) ->
-	fsdb.findAll './test/src/docs/**/*.yaml', match(req.query), (err,docs) ->
+	fscan.findAll './test/src/docs/**/*.yaml', match(req.query), (err,docs) ->
 		if err
 			console.log err
 			return next(err)
@@ -117,7 +116,7 @@ describe 'doc', ->
 			
 			res.header['content-type'].should.match(/application\/json/)
 			res.body.title.should.eql('Simple Static Doc')
-			res.body.siteData.should.eql('some site data...')
+			res.body.site.siteData.should.eql('some site data...')
 
 			done()
 
@@ -146,7 +145,7 @@ describe 'doc with $load and $link tags', ->
 
 			done()
 
-	it 'works one deep properties', (done) ->
+	it 'works on deep properties', (done) ->
 
 		client.get 'localhost:3067/test-2.1.1', (res) ->
 			if res.error
@@ -159,6 +158,20 @@ describe 'doc with $load and $link tags', ->
 			res.body.arr[1].should.eql('/test-2.1.1/picture.jpg')
 
 			done()
+
+	it 'loads and links sibling resources in named metadata files', (done) ->
+
+		client.get 'localhost:3067/test-2.1.1/named', (res) ->
+			if res.error
+				return done(res.error)
+
+			res.body.title.should.eql('Deep Link Load Test')
+			res.body.obj.text.should.eql('This is an *external* body.')
+			res.body.arr[1].should.eql('/test-2.1.1/picture.jpg')
+
+			done()
+
+
 
 describe 'doc with body and template', ->
 
@@ -187,7 +200,7 @@ describe 'doc with layout but no body or templates', ->
 			res.header['content-type'].should.match(/application\/json/)
 			res.body.title.should.eql('Basic Layout Test')
 			res.body.layoutTitle.should.eql('Layout Title')
-			res.body.siteData.should.eql('some site data...')
+			res.body.site.siteData.should.eql('some site data...')
 
 			done()
 
@@ -256,7 +269,7 @@ describe 'doc with loaded body, template and nested layouts', ->
 
 describe 'simple async doc', ->
 
-	it 'fetches from fsdb and returns json', (done) ->
+	it 'fetches from fscan and returns json', (done) ->
 
 		client.get 'localhost:3067/test-2.6.0', (res) ->
 			if res.error
@@ -268,7 +281,7 @@ describe 'simple async doc', ->
 
 			done()
 
-	it 'fetches from fsdb and returns json maybe a little faster this time', (done) ->
+	it 'fetches from fscan and returns json maybe a little faster this time', (done) ->
 
 		client.get 'localhost:3067/test-2.6.0', (res) ->
 			if res.error
@@ -282,7 +295,7 @@ describe 'simple async doc', ->
 
 describe 'simple async dynamic doc', ->
 
-	it 'fetches from fsdb per request and returns json', (done) ->
+	it 'fetches from fscan per request and returns json', (done) ->
 
 		client.get 'localhost:3067/test-2.6.1?tags[]=test', (res) ->
 			if res.error
