@@ -160,6 +160,8 @@ linkAndLoad = (req, locals, path, isindex) ->
 		prop = locals[key]
 
 		# debugger
+		if prop is null
+			done()
 
 		if prop.hasOwnProperty('$link')
 			locals[key] = link( req, prop.$link, isindex )
@@ -185,7 +187,7 @@ linkAndLoad = (req, locals, path, isindex) ->
 
 			.on 'error', done
 
-		else if typeof prop is 'object' and prop isnt null
+		else if typeof prop is 'object'
 
 			# debugger
 
