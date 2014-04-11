@@ -161,7 +161,7 @@ linkAndLoad = (req, locals, path, isindex) ->
 
 		# debugger
 		if prop is null
-			done()
+			return done()
 
 		if prop.hasOwnProperty('$link')
 			locals[key] = link( req, prop.$link, isindex )

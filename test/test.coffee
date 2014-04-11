@@ -125,12 +125,22 @@ describe 'doc', ->
 		client.get 'localhost:3067/test-2.0.0', (res) ->
 			if res.error
 				return done(res.error)
-
-			# console.log res.body
 			
 			res.header['content-type'].should.match(/application\/json/)
 			res.body.title.should.eql('Simple Static Doc')
 			res.body.site.siteData.should.eql('some site data...')
+
+			done()
+
+	it 'is ok with null props', (done) ->
+
+		client.get 'localhost:3067/test-2.0.1', (res) ->
+			if res.error
+				return done(res.error)
+			
+			res.header['content-type'].should.match(/application\/json/)
+			res.body.title.should.eql('Doc With Null Prop')
+			should.not.exist( res.body.nada )
 
 			done()
 
