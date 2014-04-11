@@ -22,19 +22,41 @@ opt =
 	src: './src'
 	out: './out'
 	maxDepth: 4
+	filter: (doc, req) ->
+		if doc.published?
+			return doc.published
+		else
+			return true
 
-module.exports = (arg) ->
+module.exports = exports = (arg) ->
 
 	opt = arg.uber opt
 
 	return (req, res, next) ->
 
+		compile( req )
+		.then (doc) ->
+			if !doc?
+				next()
+			else
+				res.send(doc)
+		.fail (err) ->
+			next(err)
+
+		
+
+
+exports.compile = compile = (req, overridepath ) ->
+
 		url = u.parse(req.url)
 
-		srcPath = p.resolve('.', p.join( opt.src,'docs',url.pathname))
+		path = overridepath ? url.pathname
+
+		srcPath = p.resolve('.', p.join( opt.src,'docs',path))
 
 		locals = 
 			site: opt.site
+			url: url.pathname
 
 		i = 0 # layout loop count
 
@@ -47,10 +69,8 @@ module.exports = (arg) ->
 		.then (meta) ->
 
 			locals.uber(meta)
-			locals.url = url.parse(req.url).pathname
 
 			if locals.body?
-				# console.log locals.body
 				locals.body = md( locals.body )
 
 			if locals.template?
@@ -76,31 +96,31 @@ module.exports = (arg) ->
 
 		.then (locals) ->
 
+			if !opt.filter(locals,req)
+				return null
+
 			if locals.content?
-				res.send( locals.content )
+				return locals.content
 
 			else
-				res.send( locals )
+				return locals
 
 		.fail (err) ->
 
 			if err.code is 'ENOENT' or err.code is 'ENOTDIR' 
-				next()
+				return null
 			else
-				next(err)
+				throw err
 
-		.done()
+
 
 
 getDoc = (path) ->
 
 	d = Q.defer()
 
-	if !path
-		console.log 'no path?', path
+	if !path?
 		d.resolve(null)
-
-	# console.log path
 
 	trypath = path + '.yaml'
 
@@ -127,6 +147,9 @@ getDoc = (path) ->
 
 
 linkAndLoad = (req, locals, path, isindex) ->
+
+	if typeof locals isnt 'object'
+		throw new Error('Locals ('+locals+') is not an object')
 
 	isindex ?= locals.isindex
 
@@ -241,8 +264,6 @@ load = (req, arg, callpath, isindex ) ->
 					callpath = callpath.slice(0,callpath.length-1).join('/')
 
 					pathname = p.join( callpath, reqopt.url )
-
-					console.log 'pathname:', pathname
 
 				return fs.createReadStream( pathname, {encoding:'utf8'})
 			else

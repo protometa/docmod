@@ -40,24 +40,39 @@ app.use docmod
 # app.get '/loadertest1/resource', (req,res) ->
 # 	res.send success:true
 
+app.use app.router
+
+app.use(st({path:'./test/src/docs', url:'/',passthrough:true}))
+app.use(st({path:'./test/src/layouts', url:'/',passthrough:true}))
+# app.use(express.errorHandler())
+
+app.use (req,res,next) ->
+	res.status(404)
+	docmod.compile(req,'/404')
+	.then ( text ) ->
+		console.log text
+		res.send( text )
+	.fail (err) ->
+		next(err)
+
+
 app.get '/fsdb/findone', (req,res,next) ->
 	fscan.findOne './test/src/docs/**/*.yaml', match(req.query), (err,doc) ->
 		if err
 			console.log err
-			return next(err)
+			res.status(500)
+			res.end()
 		res.send(doc)
 
 app.get '/fsdb/findall', (req,res,next) ->
 	fscan.findAll './test/src/docs/**/*.yaml', match(req.query), (err,docs) ->
 		if err
 			console.log err
-			return next(err)
+			res.status(500)
+			res.end()
 		res.send(docs)
 
 
-app.use(st({path:'./test/src/docs', url:'/'}))
-app.use(st({path:'./test/src/layouts', url:'/'}))
-# app.use(express.errorHandler())
 
 server = http.createServer(app).listen(3067);
 
@@ -194,9 +209,6 @@ describe 'doc with layout but no body or templates', ->
 			if res.error
 				return done(res.error)
 
-			# console.log res.body
-			# console.log res.text
-			
 			res.header['content-type'].should.match(/application\/json/)
 			res.body.title.should.eql('Basic Layout Test')
 			res.body.layoutTitle.should.eql('Layout Title')
@@ -219,7 +231,6 @@ describe 'doc with loaded body, template and layout', ->
 			# console.log res.text
 
 			$ = cheerio.load(res.text)
-
 			$('#title').text().should.eql('Layout Template Test')
 			$('head title').text().should.eql('Layout With Template | Layout Template Test')
 			$('#partial').text().should.eql('This is a fake partial.')
@@ -236,7 +247,6 @@ describe 'doc with loaded body, template and nested layouts', ->
 				return done(res.error)
 
 			$ = cheerio.load(res.text)
-
 			$('#title').text().should.eql('Nested Layout Template Test')
 			$('head title').text().should.eql('Nested Layout | Nested Layout Template Test')
 			$('#partial').text().should.eql('This is a fake partial.')
@@ -251,7 +261,6 @@ describe 'doc with loaded body, template and nested layouts', ->
 				return done(res.error)
 
 			$ = cheerio.load(res.text)
-
 			$('#title').text().should.eql('Nested Layout Template Test')
 			$('head title').text().should.eql('Nested Layout | Nested Layout Template Test')
 			$('#partial').text().should.eql('This is a fake partial.')
@@ -301,8 +310,6 @@ describe 'simple async dynamic doc', ->
 			if res.error
 				return done(res.error)
 
-			# console.log util.inspect res.body, {depth: null}
-
 			res.header['content-type'].should.match(/application\/json/)
 			res.body.dynamicAsync.should.have.length(3)
 			res.body.dynamicAsync.every( (doc) -> doc.tags.some((tag)-> tag == 'test') ).should.be.true
@@ -317,10 +324,7 @@ describe 'integrated doc with loaded template and body and nested async dymanic 
 			if res.error
 				return done(res.error)
 
-			# console.log res.text
-
 			$ = cheerio.load(res.text)
-
 			$('#title').text().should.eql('Integrated Test')
 			$('head title').text().should.eql('Nested Async Layout | Integrated Test')
 			$('ul.items').children().should.have.length(3)
@@ -329,9 +333,34 @@ describe 'integrated doc with loaded template and body and nested async dymanic 
 			done()
 
 
+describe 'filter method', ->
 
-after ->
-	server.close()
+	it 'filters out docs that dont match', (done) ->
+
+		client.get 'localhost:3067/test-2.8.0', (res) ->
+			res.status.should.eql(404)
+			done()
+
+	it 'allows docs that do match', (done) ->
+		client.get 'localhost:3067/test-2.8.1', (res) ->
+			res.status.should.eql(200)
+			done()
+
+
+describe 'standalone compiler', ->
+
+	it 'overides the req url and serves the doc at the specified path', (done) ->
+
+		client.get 'localhost:3067/thisdoesnotexist', (res) ->
+			res.status.should.eql(404)
+			$ = cheerio.load(res.text)
+			$('#content').text().trim().should.eql('404: Page not found!')
+			done()
+
+
+
+# after ->
+# 	server.close()
 
 
 
