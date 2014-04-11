@@ -185,7 +185,7 @@ linkAndLoad = (req, locals, path, isindex) ->
 
 			.on 'error', done
 
-		else if typeof prop is 'object'
+		else if typeof prop is 'object' and prop isnt null
 
 			# debugger
 

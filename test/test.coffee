@@ -50,7 +50,6 @@ app.use (req,res,next) ->
 	res.status(404)
 	docmod.compile(req,'/404')
 	.then ( text ) ->
-		console.log text
 		res.send( text )
 	.fail (err) ->
 		next(err)
