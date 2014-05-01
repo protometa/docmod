@@ -14,7 +14,7 @@ docmod = require '../lib/index'
 # config = require './config'
 
 fscan = require 'fscan'
-match = require 'mod-query-match'
+match = require './mod-query-match'
 
 app = server = null
 
