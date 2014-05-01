@@ -4,7 +4,7 @@ DocMod
 Documents as Models
 -------------------
 
-*Express middleware that serves data files with optional templating, layouts, and dynamic content - Inspired by DocPad but atempts to be more scalable and modular*
+*Express middleware that serves data files with optional templating, layouts, and dynamic content - Inspired by DocPad but attempts to be more scalable and modular*
 
 At the most basic level, DocMod will serve YAML documents as a JSON service from clean urls. If the object contains a `body` field it will parse it as Markdown and serve that. If the object contains a `template` field, it will render it (currently only Jade) with the object locals and body and serve that. If the object contains a `layout` field it will inherit from another YAML document that itself may contain locals with its own `body`,`template`, and `layout` fields.
 

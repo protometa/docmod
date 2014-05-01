@@ -2,6 +2,10 @@
   "name": "docmod",
   "version": "1.1.6",
   "description": "Document Models",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/protometa/docmod"
+  },
   "main": "lib/index.js",
   "scripts": {
     "test": "npm run build; mocha -R spec --compilers coffee:coffee-script/register",
@@ -17,7 +21,7 @@
     "async"
   ],
   "author": "Luke Nimtz",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "coffee-script": "~1.7.1",
     "superagent": "~0.16.0",

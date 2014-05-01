@@ -300,7 +300,7 @@ layout = (req, locals) ->
 	.then (meta) ->
 
 		# console.log 'layout:', meta
-		debugger
+		# debugger
 
 		delete locals.layout
 
