@@ -225,9 +225,8 @@ link = (req, arg, isindex) ->
 
 	if !opturl.hostname?
 
-		if opturl.pathname[0] is '/'
-			reqpath = reqopt.url
-		else
+		if opturl.pathname[0] isnt '/'
+
 			pathname = requrl.pathname
 
 			if !isindex
@@ -235,7 +234,7 @@ link = (req, arg, isindex) ->
 				pathname = pathname.split('/')
 				pathname = pathname.slice(0,pathname.length-1).join('/')
 
-			reqpath = p.join( pathname, reqopt.url )
+			reqpath = p.join( pathname, reqopt.url ).replace(/\\/g,'/')
 
 	return reqpath
 
