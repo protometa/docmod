@@ -17,7 +17,7 @@
     "async"
   ],
   "author": "Luke Nimtz",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "coffee-script": "~1.7.1",
     "superagent": "~0.16.0",
