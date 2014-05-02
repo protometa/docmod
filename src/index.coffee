@@ -19,6 +19,7 @@ require 'obj-uber'
 
 # defaults
 opt = 
+	host: 'localhost'
 	src: './src'
 	out: './out'
 	maxDepth: 4
@@ -268,7 +269,7 @@ load = (req, arg, callpath, isindex ) ->
 
 		reqopt.url = u.format
 			protocol: 'http:'
-			hostname: 'localhost'
+			hostname: opt.host
 			port: req.socket.localPort
 			pathname: pathname
 			search: requrl.query
