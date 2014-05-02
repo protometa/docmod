@@ -1,0 +1,11 @@
+
+
+title: Simple Test Async Doc with Request Body
+tags:
+  - yor
+  - von
+
+items:
+  $load:
+    url: /fsdb/findall
+    json: { tags: [test] }

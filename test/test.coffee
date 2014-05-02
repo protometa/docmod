@@ -311,6 +311,7 @@ describe 'simple async doc', ->
 
 			done()
 
+
 describe 'simple async dynamic doc', ->
 
 	it 'fetches from fscan per request and returns json', (done) ->
@@ -324,6 +325,23 @@ describe 'simple async dynamic doc', ->
 			res.body.dynamicAsync.every( (doc) -> doc.tags.some((tag)-> tag == 'test') ).should.be.true
 
 			done()
+
+
+describe 'simple async doc with request body', (done) ->
+
+	it 'fetches from fscan and returns json', (done) ->
+
+		client.get 'localhost:3067/test-2.6.2', (res) ->
+			if res.error
+				return done(res.error)
+
+			res.header['content-type'].should.match(/application\/json/)
+			res.body.title.should.eql('Simple Test Async Doc with Request Body')
+			res.body.items.should.have.length(3)
+			res.body.items.every( (doc) -> doc.tags.some((tag)-> tag == 'test') ).should.be.true
+
+			done()
+
 
 describe 'integrated doc with loaded template and body and nested async dymanic layouts', ->
 
