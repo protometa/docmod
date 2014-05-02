@@ -192,10 +192,8 @@ linkAndLoad = (req, locals, path, isindex) ->
 			# debugger
 
 			linkAndLoad( req, prop, path, isindex )
-			.then ->
-				done()
-			.fail (err) ->
-				done(err)
+			.then -> done()
+			.fail done
 
 		else
 			done()
@@ -261,9 +259,7 @@ load = (req, arg, callpath, isindex ) ->
 				if isindex
 					pathname = p.join( callpath, reqopt.url )
 				else
-					callpath = callpath.split('/')
-					callpath = callpath.slice(0,callpath.length-1).join('/')
-
+					callpath = p.resolve(callpath,'..')
 					pathname = p.join( callpath, reqopt.url )
 
 				return fs.createReadStream( pathname, {encoding:'utf8'})
