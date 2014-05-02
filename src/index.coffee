@@ -274,7 +274,8 @@ load = (req, arg, callpath, isindex ) ->
 			pathname: pathname
 			search: requrl.query
 
-	reqopt.headers ?= { 'accept-encoding': null }
+	reqopt.headers = req.headers
+	reqopt.headers['accept-encoding'] = null # this is to kill compression, TODO handle that specifically
 
 	# console.log opt
 
