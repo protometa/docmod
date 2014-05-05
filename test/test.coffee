@@ -40,6 +40,8 @@ app.use docmod
 # app.get '/loadertest1/resource', (req,res) ->
 # 	res.send success:true
 
+app.use express.bodyParser()
+
 app.use app.router
 
 app.use(st({path:'./test/src/docs', url:'/',passthrough:true}))
@@ -56,7 +58,7 @@ app.use (req,res,next) ->
 
 
 app.get '/fsdb/findone', (req,res,next) ->
-	fscan.findOne './test/src/docs/**/*.yaml', match(req.query), (err,doc) ->
+	fscan.findOne './test/src/docs/**/*.yaml', match(req.query.uber(req.body)), (err,doc) ->
 		if err
 			console.log err
 			res.status(500)
@@ -64,7 +66,7 @@ app.get '/fsdb/findone', (req,res,next) ->
 		res.send(doc)
 
 app.get '/fsdb/findall', (req,res,next) ->
-	fscan.findAll './test/src/docs/**/*.yaml', match(req.query), (err,docs) ->
+	fscan.findAll './test/src/docs/**/*.yaml', match(req.query.uber(req.body)), (err,docs) ->
 		if err
 			console.log err
 			res.status(500)
