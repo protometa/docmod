@@ -233,7 +233,8 @@ link = (req, arg, isindex) ->
 				pathname = pathname.split('/')
 				pathname = pathname.slice(0,pathname.length-1).join('/')
 
-			reqpath = p.join( pathname, reqopt.url ).replace(/\\/g,'/')
+			regex = /\\/g
+			reqpath = p.join( pathname, reqopt.url ).replace(regex,'/')
 
 	return reqpath
 
@@ -275,7 +276,10 @@ load = (req, arg, callpath, isindex ) ->
 			search: requrl.query
 
 	reqopt.headers = req.headers
-	reqopt.headers['accept-encoding'] = null # this is to kill compression, TODO handle that specifically
+	delete reqopt.headers['accept-encoding'] # this is to kill compression, TODO handle that specifically
+	# kill these headers that screw up dynamic content in some environments
+	delete reqopt.headers['content-length']
+	delete reqopt.headers['if-none-match'] 
 
 	# console.log opt
 
@@ -316,50 +320,3 @@ render = (locals) ->
 		locals.content = rendered
 		delete locals.template
 		return locals
-
-
-# breadcrumbs = (locals) ->
-
-# 	d = Q.defer()
-
-# 	urlsplit = locals.url.split('/').slice(1)
-# 	breadcrumbs = [
-# 		url: '/'
-# 		title: 'Home'
-# 	]
-
-# 	each urlsplit, (part,i,done) ->
-
-# 		console.log i,part
-
-# 		crumb = 
-# 			url: '/'+urlsplit.slice(0,i+1).join('/')
-
-# 		console.log crumb
-
-# 		srcPath = p.resolve('.', p.join( opt.src,'docs', crumb.url ))
-
-# 		getDoc( srcPath )
-# 		.then (meta) ->
-# 			console.log 'meta', meta
-# 			crumb.title = meta.title
-# 			breadcrumbs[i+1] = crumb
-# 			done()
-# 		.fail (err) ->
-# 			console.log err
-# 			if err.code is 'ENOENT' or err.code is 'ENOTDIR'
-# 				crumb.dir = part
-# 				breadcrumbs[i+1] = crumb
-# 				done()
-# 			else
-# 				done(err)
-# 	, (err) ->
-# 		if err then return d.reject(err)
-
-# 		console.log breadcrumbs
-
-# 		locals.breadcrumbs = breadcrumbs
-
-# 		d.resolve(locals)
-
-# 	d.promise
