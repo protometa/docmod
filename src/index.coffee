@@ -226,24 +226,22 @@ link = (req, arg, callpath, isindex) ->
 	opturl = u.parse(reqopt.url)
 	reqpath = reqopt.url
 
-	if !opturl.hostname?
+	if !opturl.hostname? and opturl.pathname[0] isnt '/'
 
-		if opturl.pathname[0] isnt '/'
+		if callpath?
 
-			if callpath?
+			callpath = '/'+p.relative(opt.src, callpath )
 
-				callpath = '/'+p.relative(opt.src, callpath )
+			if !isindex
+				callpath = p.resolve(callpath,'..')
+				
+		# pathname = requrl.pathname
 
-				if !isindex
-					callpath = p.resolve(callpath,'..')
-					
-			# pathname = requrl.pathname
+		# if !isindex
+		# 	pathname = p.resolve(requrl.pathname,'..')
 
-			# if !isindex
-			# 	pathname = p.resolve(requrl.pathname,'..')
-
-			regex = /\\/g
-			reqpath = p.join( callpath, reqopt.url ).replace(regex,'/')
+		regex = /\\/g
+		reqpath = p.join( callpath, reqopt.url ).replace(regex,'/')
 
 	# console.log arg
 	# console.log 'link path at %s: %s', req.url, reqpath

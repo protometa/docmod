@@ -197,6 +197,15 @@ describe 'doc with $load and $link tags', ->
 
 			done()
 
+	it 'resolves relative links', (done) ->
+
+		client.get 'localhost:3067/test-2.1.2', (res) ->
+			if res.error
+				return done(res.error)
+
+			res.body.title.should.eql('Relative Link Test')
+			res.body.image.should.eql('/docs/test-2.1.2/images/picture.jpg')
+			done()
 
 
 describe 'doc with body and template', ->
@@ -396,6 +405,7 @@ describe 'layout with linked resource', ->
 				return done(res.error)
 
 			$ = cheerio.load(res.text)
+			$('head title').text().should.eql('Layout With Linked Resource | Basic Layout Test')
 			$('img').attr('src').should.eql('/layouts/layout-2.1.1/picture.jpg')
 			done()
 

@@ -1,0 +1,7 @@
+
+title: Relative Link Test
+tags:
+  - qux
+  - pop
+
+image: {$link: images/picture.jpg }
