@@ -1,0 +1,5 @@
+
+layoutTitle: Layout With Linked Resource
+partial: "<p>This is a fake partial.</p>"
+image: {$link: picture.jpg }
+template: { $load: template.jade }

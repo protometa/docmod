@@ -6,4 +6,4 @@ tags:
 
 text: {$load: body.md }
 
-layout: layout-2.0.0
+layout: layout-2.1.1

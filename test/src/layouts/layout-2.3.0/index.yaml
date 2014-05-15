@@ -2,7 +2,7 @@
 layoutTitle: Nested Async Layout
 
 wrapperClass: 'nested'
-partial: {$load: '/partial.html'}
+partial: {$load: '/docs/partial.html'}
 
 items:
   $load:

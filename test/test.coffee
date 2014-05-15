@@ -44,8 +44,8 @@ app.use express.bodyParser()
 
 app.use app.router
 
-app.use(st({path:'./test/src/docs', url:'/',passthrough:true}))
-app.use(st({path:'./test/src/layouts', url:'/',passthrough:true}))
+app.use(st({path:'./test/src', url:'/',passthrough:true}))
+# app.use(st({path:'./test/src/layouts', url:'/',passthrough:true}))
 # app.use(express.errorHandler())
 
 app.use (req,res,next) ->
@@ -151,7 +151,7 @@ describe 'doc with $load and $link tags', ->
 
 	it 'allows static resources', (done) ->
 
-		client.get 'http://localhost:3067/test-2.1.0/body.md', (res) ->
+		client.get 'http://localhost:3067/docs/test-2.1.0/body.md', (res) ->
 			if res.error
 				return done(res.error)
 			# console.log res.text
@@ -167,7 +167,7 @@ describe 'doc with $load and $link tags', ->
 
 			res.body.title.should.eql('Link and Load')
 			res.body.text.should.eql('This is an *external* body.')
-			res.body.image.should.eql('/test-2.1.0/picture.jpg')
+			res.body.image.should.eql('/docs/test-2.1.0/picture.jpg')
 
 			done()
 
@@ -181,7 +181,7 @@ describe 'doc with $load and $link tags', ->
 
 			res.body.title.should.eql('Deep Link Load Test')
 			res.body.obj.text.should.eql('This is an *external* body.')
-			res.body.arr[1].should.eql('/test-2.1.1/picture.jpg')
+			res.body.arr[1].should.eql('/docs/test-2.1.1/picture.jpg')
 
 			done()
 
@@ -193,7 +193,7 @@ describe 'doc with $load and $link tags', ->
 
 			res.body.title.should.eql('Deep Link Load Test')
 			res.body.obj.text.should.eql('This is an *external* body.')
-			res.body.arr[1].should.eql('/test-2.1.1/picture.jpg')
+			res.body.arr[1].should.eql('/docs/test-2.1.1/picture.jpg')
 
 			done()
 
@@ -384,6 +384,19 @@ describe 'standalone compiler', ->
 			res.status.should.eql(404)
 			$ = cheerio.load(res.text)
 			$('#content').text().trim().should.eql('404: Page not found!')
+			done()
+
+
+describe 'layout with linked resource', ->
+
+	it 'resolves path relative to layout doc', (done) ->
+
+		client.get 'localhost:3067/testpath/test-2.9.0', (res) ->
+			if res.error
+				return done(res.error)
+
+			$ = cheerio.load(res.text)
+			$('img').attr('src').should.eql('/layouts/layout-2.1.1/picture.jpg')
 			done()
 
 

@@ -166,7 +166,7 @@ linkAndLoad = (req, locals, path, isindex) ->
 			return done()
 
 		if prop.hasOwnProperty('$link')
-			locals[key] = link( req, prop.$link, isindex )
+			locals[key] = link( req, prop.$link, path, isindex )
 
 			done()
 
@@ -215,7 +215,7 @@ linkAndLoad = (req, locals, path, isindex) ->
 
 
 
-link = (req, arg, isindex) ->
+link = (req, arg, callpath, isindex) ->
 	reqopt = {}
 	if typeof arg == 'string'
 		reqopt.url = arg
@@ -230,13 +230,20 @@ link = (req, arg, isindex) ->
 
 		if opturl.pathname[0] isnt '/'
 
-			pathname = requrl.pathname
+			if callpath?
 
-			if !isindex
-				pathname = p.resolve(requrl.pathname,'..')
+				callpath = '/'+p.relative(opt.src, callpath )
+
+				if !isindex
+					callpath = p.resolve(callpath,'..')
+					
+			# pathname = requrl.pathname
+
+			# if !isindex
+			# 	pathname = p.resolve(requrl.pathname,'..')
 
 			regex = /\\/g
-			reqpath = p.join( pathname, reqopt.url ).replace(regex,'/')
+			reqpath = p.join( callpath, reqopt.url ).replace(regex,'/')
 
 	# console.log arg
 	# console.log 'link path at %s: %s', req.url, reqpath
@@ -263,11 +270,10 @@ load = (req, arg, callpath, isindex ) ->
 
 			if callpath?
 
-				if isindex
-					pathname = p.join( callpath, reqopt.url )
-				else
+				if !isindex
 					callpath = p.resolve(callpath,'..')
-					pathname = p.join( callpath, reqopt.url )
+
+				pathname = p.join( callpath, reqopt.url )
 
 				return fs.createReadStream( pathname, {encoding:'utf8'})
 			else
