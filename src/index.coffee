@@ -108,7 +108,8 @@ exports.compile = compile = (req, overridepath ) ->
 
 		.fail (err) ->
 
-			if err.code is 'ENOENT' or err.code is 'ENOTDIR' 
+			if err.code is 'ENOENT' or err.code is 'ENOTDIR'
+				# console.error err.stack
 				return null
 			else
 				throw err
@@ -186,7 +187,10 @@ linkAndLoad = (req, locals, path, isindex) ->
 
 				done()
 
-			.on 'error', done
+			.on 'error', (err) ->
+				console.error "DocMod: Error loading '%s' at '%s'", key, req.url
+				console.error err.stack
+				done(err)
 
 		else if typeof prop is 'object'
 
@@ -229,12 +233,13 @@ link = (req, arg, isindex) ->
 			pathname = requrl.pathname
 
 			if !isindex
-				pathname = requrl.pathname
-				pathname = pathname.split('/')
-				pathname = pathname.slice(0,pathname.length-1).join('/')
+				pathname = p.resolve(requrl.pathname,'..')
 
 			regex = /\\/g
 			reqpath = p.join( pathname, reqopt.url ).replace(regex,'/')
+
+	# console.log arg
+	# console.log 'link path at %s: %s', req.url, reqpath
 
 	return reqpath
 
@@ -281,7 +286,7 @@ load = (req, arg, callpath, isindex ) ->
 	delete reqopt.headers['content-length']
 	delete reqopt.headers['if-none-match'] 
 
-	# console.log opt
+	# console.log reqopt
 
 	return req.pipe( request( reqopt ) )
 
