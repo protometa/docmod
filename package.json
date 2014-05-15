@@ -11,6 +11,7 @@
     "test": "mocha -R spec --compilers coffee:coffee-script/register",
     "debug": "mocha -R spec --compilers coffee:coffee-script/register -t 0 --debug-brk",
     "build": "coffee -c -o lib/ src/",
+    "dev": "coffee -wc -o lib/ src/",
     "prepublish": "npm run build"
   },
   "keywords": [
