@@ -329,7 +329,7 @@ describe 'simple async dynamic doc', ->
 			done()
 
 
-describe.only 'simple async doc with request body', (done) ->
+describe 'simple async doc with request body', (done) ->
 
 	it 'fetches from fscan and returns json', (done) ->
 
